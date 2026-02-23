@@ -633,11 +633,11 @@ def train(G, training_type, training_steps, weight_type, delta_weight, learning_
     # LOOP over training steps
     for step in range(training_steps): 
 
-        # update_weights(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step, varying_len=varying_len)
+        update_weights(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step, varying_len=varying_len)
         # update_weights_parallel(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, varying_len=varying_len, step=step)
         # error = cost_function_regression(G, weight_type, dataset_input_voltage, dataset_output_voltage, step)
         # update_resistances(G, training_type, dataset_input_voltage, dataset_output_voltage, step=step)
-        update_length_cl(G)
+        # update_length_cl(G)
 
         if write_weights:
             write_weights_to_file(G, DATA_PATH_WEIGHT, step=step+1, weight_type=weight_type)
