@@ -376,6 +376,73 @@ def update_resistances(G_free, training_type, dataset_input_voltage, dataset_out
         
     return G_free 
 
+def update_length_cl(G_free):
+
+    eta = 0.1
+    alpha = 1000
+    gamma = alpha/(2*eta)
+
+
+    # solve graph free
+
+    circuit = networks.circuit_from_graph(G_free, type='memristors') 
+    analysis = ahkab.new_tran(tstart=0, tstop=0.05, tstep=1e-3, x0=None)
+    result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
+    result = result[0]
+    voltages_free = np.array([result['tran'][f'VN{node}'][-1] for node in range(len(G_free.nodes()))])
+
+    G_clamped = G_free.copy(as_view=False)
+
+    G_clamped = update_output(G_clamped, voltages_free)
+
+    circuit = networks.circuit_from_graph(G_clamped, type='memristors') 
+    analysis = ahkab.new_tran(tstart=0, tstop=0.05, tstep=1e-3, x0=None)
+    result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
+    result = result[0]
+    voltages_clamped = np.array([result['tran'][f'VN{node}'][-1] for node in G_clamped.nodes()])
+
+
+    for edge in G_free.edges():
+
+        u, v = edge
+
+        # print(u,v, voltages_free[u], voltages_free[v])
+
+        diff_free = np.abs(voltages_free[int(u)] - voltages_free[int(v)])
+        diff_clamped = np.abs(voltages_clamped[int(u)] - voltages_clamped[int(v)])
+
+        delta_v = diff_clamped-diff_free
+        # standard_dev = 0.01
+        # sample = 2* np.random.rand() * standard_dev - standard_dev/2
+        # delta_v += sample
+        # # print(delta_v)
+        # delta_v_sq = sample*(diff_clamped**2 - diff_free**2)
+        
+
+        # prefac = gamma * (1 / (G_free.edges[edge]['resistance'])**2)
+        prefac = 0.5
+
+        delta_R_cont = prefac * (delta_v)
+
+        G_free.edges[edge]['length'] += delta_R_cont
+
+        # if delta_v>0:
+        #     G_free.edges[edge]['resistance'] += 0.781
+        # else:
+        #     G_free.edges[edge]['resistance'] -= 0.781
+
+
+
+        # if G_free.edges[edge]['resistance'] < 1 :
+
+        #     G_free.edges[edge]['resistance'] = 1
+
+        # if G_free.edges[edge]['resistance'] > 128 :
+
+        #     G_free.edges[edge]['resistance'] = 128
+        
+    return G_free 
+
 # Returns two arrays with length 15: input voltage and corresponding desired output following the linear relationship
 
 def generate_dataset(training_steps, random=False):
@@ -566,11 +633,12 @@ def train(G, training_type, training_steps, weight_type, delta_weight, learning_
     # LOOP over training steps
     for step in range(training_steps): 
 
-        update_weights(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step, varying_len=varying_len)
+        # update_weights(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step, varying_len=varying_len)
         # update_weights_parallel(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, varying_len=varying_len, step=step)
         # error = cost_function_regression(G, weight_type, dataset_input_voltage, dataset_output_voltage, step)
         # update_resistances(G, training_type, dataset_input_voltage, dataset_output_voltage, step=step)
-        
+        update_length_cl(G)
+
         if write_weights:
             write_weights_to_file(G, DATA_PATH_WEIGHT, step=step+1, weight_type=weight_type)
             
