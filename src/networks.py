@@ -142,7 +142,7 @@ def voltage_divider(save_data=False, voltage_desired = [4]):
     
     # INITIALIZE nodes and edges
     voltage_input = [5, 0] # node initialized here because different for differnent nw
-    voltage_desired = [3]
+    voltage_desired = [4]
 
     initialize_nodes(G, sources=[0,2], targets=[1], voltage_input=voltage_input, voltage_desired=voltage_desired)
     initialize_edges(G, mix_base_tip=False)
@@ -155,7 +155,7 @@ def voltage_divider(save_data=False, voltage_desired = [4]):
 
 # RANDOM NETWORK
  
-def random_graph(graph_id, number_nodes=9, number_edges=12, number_sources=5, number_targets = 3, save_data=False, res_change=False):
+def random_graph(graph_id, number_nodes=9, number_edges=12, number_sources=3, number_targets = 1, save_data=False, res_change=False):
 
     # CREATE random graph with number_nodes conected by number_edges
     G = nx.dense_gnm_random_graph(number_nodes, number_edges)
