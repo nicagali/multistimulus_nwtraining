@@ -55,7 +55,6 @@ def initialize_nodes(G, sources, targets, voltage_input=None, voltage_desired=No
             G.nodes[node]['desired'] = voltage_desired[index_desired]
             index_desired+=1
 
-
 def initialize_edges(G, mix_base_tip = False):
 
     initial_length = 10 # [mu m]
@@ -87,7 +86,6 @@ def initialize_edges(G, mix_base_tip = False):
         G.edges[edge]['delta_rho'] = 0
 
 # 2 --------- DEFINE DIFFERENT GRAPHS ---------
-
 
 # SINGLE MEMRISTOR: 0 --- 1 
 def single_memristor(save_data=False):
@@ -190,7 +188,6 @@ def circuit_from_graph(G, type, imposed_pressure=None):
 
         # Adding the voltage sources from ground to input nodes
         if G.nodes[node]['type'] == 'source':
-            # print(node, G.nodes[node]['type'], G.nodes[node]['voltage'])
             circuit.add_vsource(f"VN{node}", n1=f'n{node}', n2=circuit.gnd, dc_value=G.nodes[node]['voltage'])
             
     # ADD elements on links
@@ -201,7 +198,6 @@ def circuit_from_graph(G, type, imposed_pressure=None):
         if type == 'memristors':
             if imposed_pressure==None:
                 circuit.add_mysistor(f'M{index+1}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]["resistance"], rho_b=G.nodes[edge[0]]['rho'], length_channel = G.edges[edge]['length']*1e-6, radius_base = G.edges[edge]['radius_base']*1e-9, pressure=(G.nodes[edge[0]]['pressure']-G.nodes[edge[1]]['pressure'])*1e5, delta_rho = (G.nodes[edge[0]]['rho']-G.nodes[edge[1]]['rho']))
-                # print(G.edges[edge]['length'], (G.nodes[edge[0]]['rho']-G.nodes[edge[1]]['rho']))
             else:
                 circuit.add_mysistor(f'M{index+1}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]["resistance"], rho_b=G.nodes[edge[0]]['rho'], length_channel = G.edges[edge]['length']*1e-6, radius_base = G.edges[edge]['radius_base']*1e-9, pressure=(imposed_pressure)*1e5, delta_rho = (G.nodes[edge[0]]['rho']-G.nodes[edge[1]]['rho']))
 
@@ -210,59 +206,3 @@ def circuit_from_graph(G, type, imposed_pressure=None):
             circuit.add_resistor(f'R{index}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]['resistance'])
         
     return circuit
-
-
-def to_directed_graph(G_structure, shuffle = False):
-
-    G = nx.DiGraph()
-    voltage_input = []
-    voltage_desired = []
-    
-    nodes = [node for node in G_structure.nodes()]
-    targets = [x for x in G_structure.nodes() if G_structure.nodes[x]['type']=='target']
-    sources = [x for x in G_structure.nodes() if G_structure.nodes[x]['type']=='source']
-    voltage_input = [0, 5, 3, 2, 1] # node initialized here because different for differnent nw
-    voltage_desired = [2, 2, 3]
-
-    G.add_nodes_from(nodes)
-
-    initialize_nodes(G, sources, targets, voltage_input, voltage_desired)
-
-    edges = [edge for edge in G_structure.edges()]
-    if shuffle:
-        for edge_index in range(len(edges)):
-            direction = random.random()
-            if direction>0.3:
-                edges[edge_index] = (edges[edge_index][0], edges[edge_index][1])
-            else:
-                edges[edge_index] = (edges[edge_index][1], edges[edge_index][0])
-
-    G.add_edges_from(edges)
-
-    initialize_edges(G)
-    
-    G.graph['name'] = G_structure.graph['name']
-    
-    return G    
-
-
-def reverse(self, copy=True):
-    """Returns the reverse of the graph.
-
-    The reverse is a graph with the same nodes and edges
-    but with the directions of the edges reversed.
-
-    Parameters
-    ----------
-    copy : bool optional (default=True)
-        If True, return a new DiGraph holding the reversed edges.
-        If False, the reverse graph is created using a view of
-        the original graph.
-    """
-    if copy:
-        H = self.__class__()
-        H.graph.update(deepcopy(self.graph))
-        H.add_nodes_from((n, deepcopy(d)) for n, d in self.nodes.items())
-        H.add_edges_from((v, u, deepcopy(d)) for u, v, d in self.edges(data=True))
-        return H
-    return nx.reverse_view(self)
