@@ -53,11 +53,13 @@ def cost_function(G, weight_type, write_potential_target_to_file=None, update_in
     else:
         circuit = networks.circuit_from_graph(G, type='memristors') 
         analysis = ahkab.new_tran(tstart=0, tstop=0.05, tstep=1e-3, x0=None, varying_len=varying_len)
+        
 
     # DEFINE a transient analysis (analysis of the circuit over time)
     result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
 
     resistance_vec = result[1]
+    # print(1/resistance_vec[-1][0])
     result = result[0]
 
     # UPDATE the value of the initial conductance to the last in the tran simulation to speed up (in a voltage divider 5 steps speeds of 0.01s giving same results)
@@ -261,6 +263,7 @@ def update_weights(G, training_type, base_error, weight_type, delta_weight, lear
             G_increment = G.copy(as_view=False)
   
             G_increment.edges[edge][f'{weight_type}'] += delta_weight
+            # print(G_increment.edges[edge][f'{weight_type}'])
             
             if training_type == 'allostery':
                 error = cost_function(G_increment, weight_type, varying_len=varying_len)  
@@ -277,6 +280,7 @@ def update_weights(G, training_type, base_error, weight_type, delta_weight, lear
         for index, edge in enumerate(G.edges()):    #Different loop cause you don't want to change edges yet
 
             G.edges[edge][f'{weight_type}'] -= learning_rate*gradients[index]
+            # print(gradients[index])
 
             if G.edges[edge][f'{weight_type}'] < 0:
                 G.edges[edge][f'{weight_type}'] += learning_rate*gradients[index]
@@ -318,11 +322,7 @@ def update_resistances(G_free, training_type, dataset_input_voltage, dataset_out
     analysis = ahkab.new_op()
     result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
     result = result[0]
-    # print(result.keys())
-    # print(f'VN0')
     voltages_free = np.array([result['op'][f'VN{node}'][0][0] for node in range(len(G_free.nodes()))])
-    # print(result['op'])
-    # print(voltages_free)
 
     G_clamped = G_free.copy(as_view=False)
 
@@ -333,14 +333,10 @@ def update_resistances(G_free, training_type, dataset_input_voltage, dataset_out
     result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
     result = result[0]
     voltages_clamped = np.array([result['op'][f'VN{node}'][0][0] for node in G_clamped.nodes()])
-    # print(voltages_clamped)
-
 
     for edge in G_free.edges():
 
         u, v = edge
-
-        # print(u,v, voltages_free[u], voltages_free[v])
 
         diff_free = np.abs(voltages_free[int(u)] - voltages_free[int(v)])
         diff_clamped = np.abs(voltages_clamped[int(u)] - voltages_clamped[int(v)])
@@ -349,7 +345,6 @@ def update_resistances(G_free, training_type, dataset_input_voltage, dataset_out
         standard_dev = 0.01
         sample = 2* np.random.rand() * standard_dev - standard_dev/2
         delta_v += sample
-        # print(delta_v)
         delta_v_sq = sample*(diff_clamped**2 - diff_free**2)
         
 
@@ -359,13 +354,6 @@ def update_resistances(G_free, training_type, dataset_input_voltage, dataset_out
 
         G_free.edges[edge]['resistance'] += delta_R_cont
 
-        # if delta_v>0:
-        #     G_free.edges[edge]['resistance'] += 0.781
-        # else:
-        #     G_free.edges[edge]['resistance'] -= 0.781
-
-
-
         if G_free.edges[edge]['resistance'] < 1 :
 
             G_free.edges[edge]['resistance'] = 1
@@ -373,73 +361,6 @@ def update_resistances(G_free, training_type, dataset_input_voltage, dataset_out
         if G_free.edges[edge]['resistance'] > 128 :
 
             G_free.edges[edge]['resistance'] = 128
-        
-    return G_free 
-
-def update_length_cl(G_free):
-
-    eta = 0.1
-    alpha = 1000
-    gamma = alpha/(2*eta)
-
-
-    # solve graph free
-
-    circuit = networks.circuit_from_graph(G_free, type='memristors') 
-    analysis = ahkab.new_tran(tstart=0, tstop=0.05, tstep=1e-3, x0=None)
-    result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
-    result = result[0]
-    voltages_free = np.array([result['tran'][f'VN{node}'][-1] for node in range(len(G_free.nodes()))])
-
-    G_clamped = G_free.copy(as_view=False)
-
-    G_clamped = update_output(G_clamped, voltages_free)
-
-    circuit = networks.circuit_from_graph(G_clamped, type='memristors') 
-    analysis = ahkab.new_tran(tstart=0, tstop=0.05, tstep=1e-3, x0=None)
-    result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
-    result = result[0]
-    voltages_clamped = np.array([result['tran'][f'VN{node}'][-1] for node in G_clamped.nodes()])
-
-
-    for edge in G_free.edges():
-
-        u, v = edge
-
-        # print(u,v, voltages_free[u], voltages_free[v])
-
-        diff_free = np.abs(voltages_free[int(u)] - voltages_free[int(v)])
-        diff_clamped = np.abs(voltages_clamped[int(u)] - voltages_clamped[int(v)])
-
-        delta_v = diff_clamped-diff_free
-        # standard_dev = 0.01
-        # sample = 2* np.random.rand() * standard_dev - standard_dev/2
-        # delta_v += sample
-        # # print(delta_v)
-        # delta_v_sq = sample*(diff_clamped**2 - diff_free**2)
-        
-
-        # prefac = gamma * (1 / (G_free.edges[edge]['resistance'])**2)
-        prefac = 0.5
-
-        delta_R_cont = prefac * (delta_v)
-
-        G_free.edges[edge]['length'] += delta_R_cont
-
-        # if delta_v>0:
-        #     G_free.edges[edge]['resistance'] += 0.781
-        # else:
-        #     G_free.edges[edge]['resistance'] -= 0.781
-
-
-
-        # if G_free.edges[edge]['resistance'] < 1 :
-
-        #     G_free.edges[edge]['resistance'] = 1
-
-        # if G_free.edges[edge]['resistance'] > 128 :
-
-        #     G_free.edges[edge]['resistance'] = 128
         
     return G_free 
 
