@@ -12,7 +12,7 @@ from pathlib import Path
 plt.style.use("src/plotting_style.mplstyle")
 import matplotlib.pyplot as plt
 
-graph_id = 'G00010001'
+graph_id = 'G00020001'
 
 # --------- INITIALIZE NETWORK ---------
 
