@@ -1,22 +1,24 @@
-import sys
-sys.path.append("src/")
-import networks
-import networkx as nx
-import training
-import plotting
-import parameters as par
-import matplotlib.pyplot as plt
-from pathlib import Path
+"""
+Revert the direction of memeristors of an existing network, then train and plot for inoput-output voltage mapping task.
 
-graph_id_original = 'G00010001'
-graph_id = 'G00010002'
+Outputs:
+- plots/networks/<graph_id>.png
+- plots/<training_type>_<network_name>/mse.png -> normalized mean squared error of the trained network at each training step
+- plots/<training_type>_<network_name>/weights.png -> evolution of the weights at each training step (not implemented for 'best_choice' weight type)
+"""
+from src import networks, training, plotting
+from pathlib import Path
+plt.style.use("src/plotting_style.mplstyle")
+import matplotlib.pyplot as plt
+import networkx as nx
+
+graph_id_original = 'G00020001'
+graph_id = 'G00020002'
 
 # --------- INITIALIZE NETWORK ---------
 G = nx.read_graphml(f'data/networks/{graph_id_original}.graphml')
 
-# G.remove_edge('0', '1')
-# G.add_edge('3','0')
-# networks.initialize_edges(G)
+# Shuffle randomly directions of memristors
 G = networks.to_directed_graph(G, shuffle=True)
 
 # -> PLOT graph in /plots 
@@ -45,11 +47,13 @@ PLOT_PATH.mkdir(parents=True, exist_ok=True)
 
 fig, ax = plt.subplots()
 plotting.plot_mse(ax, fig, G.name, training_type, weight_type)
-ax.legend(fontsize = par.legend_size)
+ax.legend()
 fig.tight_layout()
 fig.savefig(f"{PLOT_PATH}/mse.png", dpi=100)
 
-fig, ax = plt.subplots(figsize = (5.5,4))
-plotting.plot_weights(ax, G, training_steps, training_type, weight_type, show_xlabel=False)
-fig.tight_layout()
-fig.savefig(f"{PLOT_PATH}/weights_{weight_type}.png", dpi=100)
+# Plot weights if not best choice, feature not implemented
+if weight_type != 'best_choice':
+    fig, ax = plt.subplots(figsize = (5.5,4))
+    plotting.plot_weights(ax, G, training_steps, training_type, weight_type, show_xlabel=False)
+    fig.tight_layout()
+    fig.savefig(f"{PLOT_PATH}/weights_{weight_type}.png", dpi=100)

@@ -4,7 +4,6 @@ Train and plot a general shape network for inoput-output voltage mapping task.
 Outputs:
 - plots/networks/<graph_id>.png
 - plots/<training_type>_<network_name>/mse.png -> normalized mean squared error of the trained network at each training step
-- plots/<training_type>_<network_name>/evolution_finalnw.png -> evolution to the staedy state of the trained network, showing the potential at each node at the final training step
 - plots/<training_type>_<network_name>/weights.png -> evolution of the weights at each training step (not implemented for 'best_choice' weight type)
 """
 from src import networks, training, plotting
