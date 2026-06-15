@@ -7,7 +7,11 @@ Outputs:
 - plots/<training_type>_<network_name>/evolution_finalnw.png -> evolution to the staedy state of the trained network, showing the potential at each node at the final training step
 - plots/<training_type>_<network_name>/weights.png -> evolution of the weights at each training step (not implemented for 'best_choice' weight type)
 """
-from src import networks, training, plotting
+import sys
+sys.path.append("src/")
+import networks
+import plotting
+import training
 from pathlib import Path
 import matplotlib.pyplot as plt
 plt.style.use("src/plotting_style.mplstyle")
@@ -24,15 +28,15 @@ fig.tight_layout()
 fig.savefig(f"plots/networks/vd.png", dpi=100)
 
 # --------- TRAIN NETWORK ---------
-
 training_steps = 50
-training_type = 'length_radius_base'
-weight_type = 'pressure' # choose between: ['length', 'resistance', 'radius_base', 'rho', 'pressure', 'length_radius_base', 'length_pressure', 'best_choice']
-delta_weight = 1e-3 # previously used: [1e-3, 1e-3, 1, 1e-4, 1e-3, [1e-3, 1e-2], [1e-3, 1e-3], [1e-3, 1, 1e-4, 1e-3]]
-learning_rate =  1e2 # previously used: [3e-6, 1e-3, 3.5e-6, 5e-4, 1e2, [1e-6, 2*1e-6], [5e-6, 1], [2e-6, 3.5e-6, 5e-4, 1e2]]
+training_type = 'allostery'
+weight_type = 'pressure' # choose between: ['length', 'radius_base', 'rho', 'pressure', 'length_radius_base', 'length_pressure', 'best_choice']
+delta_weight = 1e-3 # previously used: [1e-3,  1, 1e-4, 1e-3, [1e-3, 1e-2], [1e-3, 1e-3], [1e-3, 1, 1e-4, 1e-3]]
+learning_rate = 1e2 # previously used: [3e-6, 1e-3, 3e-6, 5e-4, 1e2, [1e-6, 2e-6], [5e-6, 1], [2e-6, 3.5e-6, 5e-4, 1e2]]
+relative_noise = 0
 
 G_ml = G.copy(as_view=False)  
-training.train(G_ml, training_type, training_steps, weight_type, delta_weight, learning_rate, write_weights=True)
+training.train(G_ml, training_type, training_steps, weight_type, delta_weight, learning_rate, write_weights=True, relative_noise=relative_noise, n_cores = 2)
 
 PLOT_PATH = Path(f"plots/{training_type}{G.graph['name']}/")
 PLOT_PATH.mkdir(parents=True, exist_ok=True)
@@ -50,7 +54,7 @@ fig, ax = plt.subplots()
 plotting.plot_mse(ax, fig, G.name, training_type, weight_type)
 ax.legend()
 fig.tight_layout()
-fig.savefig(f"{PLOT_PATH}/mse.png", dpi=300)
+fig.savefig(f"{PLOT_PATH}/mse.png", dpi=200)
 
 # Plot weights if not best choice, feature not implemented
 if weight_type != 'best_choice':
