@@ -1,0 +1,8 @@
+numpy
+matplotlib
+networkx
+pypalettes
+scipy
+sys
+multiprocessing
+pathlib
