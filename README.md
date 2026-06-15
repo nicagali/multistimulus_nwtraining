@@ -21,7 +21,8 @@ The framework enables the training of iontronic networks using multiple physical
 as trainable weights.
 
 ---
-<img src="docs/graph.png" width="500">
+<img src="docs/graph.png" width="400">
+<img src="docs/mse.png" width="400">
 
 
 ## Repository Structure
