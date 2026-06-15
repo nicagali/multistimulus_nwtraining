@@ -3,8 +3,6 @@
 DATA_PATH = '../data/'
 DATA_PATH_RAW = '../data/raw/'
 PLOT_PATH = '../plots/'
-PACKAGE_PATH = '/home/monicaconte/nica/phd/Projects/Efficient_ML_Memristor_Network/codes/ahkab'
-# PACKAGE_PATH = '/Users/monicaconte/PhD/Projects/Contrastive_Learning_Memristors/Learning_Neural_Networks_true/codes/ahkab'
 
 # --------- NETWORKS PLOTS STYLES ---------
 
@@ -17,16 +15,6 @@ color_edges = 'lightblue'
 color_font_edges = 'white'
 
 # --------- PLOTS STYLES ---------
-
-figsize_2horizontal = (11,5)
-figsize_3horizontal = (13,5)
-figsize_4horizontal = (13,5)
-figsize_1 = (4.4,4)
-
-legend_size = 15
-axis_fontsize = 19
-size_ticks = 20
-marker_size = 10
 
 # -> MSE style
 
@@ -56,7 +44,7 @@ regression_styles = {
     'rho': dict(marker = 'o', s=30, c = cmap.colors[1], lw=1,),
     'rho_des': dict(c = 'moccasin', lw=2, label = rf'$V^D$'),
     'radius_base': dict(marker = 'o', c = cmap.colors[2], lw=1, label = rf'$R_b$'),
-    'radius_base_des': dict(c = 'yellow', lw=4, label = rf'$V^D$'),
+    'radius_base_des': dict(c = 'yellow', lw=4),
     'pressure': dict(marker = 'o', c = cmap.colors[3], lw=1, label = rf'$P$'),
     'pressure_des': dict(c = 'green', lw=4, label = rf'$V^D$')
 }
@@ -71,27 +59,5 @@ potential_drops_style = {
     'v3': dict(c = color_dots[0], lw=3, label = rf'$V_3$'),
     'deltav1': dict(c = 'plum', lw=5, label = rf'$\Delta V_1$'),
     'deltav2': dict(c = 'darkorchid', lw=2, label = rf'$\Delta V_2$')}
-
-conductances_style = {
-    'M1': dict(c = 'darkcyan', lw=5, label=r'$M_1$'),
-    'M2': dict(c = 'lightblue', lw=2, label=r'$M_2$')
-    
-}
-
-lengths_style = {
-    'M1': dict(c = 'green', lw=5, label=r'$M_1$'),
-    'M2': dict(c = 'mediumseagreen', lw=2, label=r'$M_2$')
-    
-}
-
-steady_state_point = {    
-    'M1': dict(marker = '^', c = 'darkcyan', s=200, edgecolors= 'blue' , label=r'steady state $M_1$'),
-    'M2': dict(marker = 'o', c = 'lightblue', s=200, edgecolors= 'blue', label=r'steady state $M_2$')
-    }
-
-g_infinity_style = {
-    'M1': dict(c = 'mediumaquamarine', lw=5, label=r'$g_{\infty}^{M_1}$'),
-    'M2': dict(c = 'dodgerblue', lw=2, label=r'$g_{\infty}^{M_2}$')
-}
 
 
