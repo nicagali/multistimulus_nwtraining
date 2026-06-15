@@ -12,7 +12,9 @@ plt.style.use("src/plotting_style.mplstyle")
 import matplotlib.pyplot as plt
 import networkx as nx
 
+# Graph to revert directions
 graph_id_original = 'G00020001'
+# name of the new graph
 graph_id = 'G00020002'
 
 # --------- INITIALIZE NETWORK ---------

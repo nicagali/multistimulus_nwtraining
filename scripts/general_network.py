@@ -1,5 +1,5 @@
 """
-Train and plot a general shape network for inoput-output voltage mapping task.
+Train and plot a general shape network for inoput-output voltage (here called allostery) mapping task.
 
 Outputs:
 - plots/networks/<graph_id>.png
