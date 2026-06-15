@@ -9,9 +9,12 @@ import ahkab
 
 # --------- WRITE RESULTS TO FILES ---------
 
-def write_weights_to_file(G, DATA_PATH, step, weight_type):
+def write_weights_to_file(G, DATA_PATH, step, weight_type, multi_train=False):
 
-    file = open(f"{DATA_PATH}/{weight_type}{step}.txt", "w")
+    if multi_train:
+        file = open(f"{DATA_PATH}/{weight_type}{step}_target{G.nodes[1]['desired']}.txt", "w")
+    else:
+        file = open(f"{DATA_PATH}/{weight_type}{step}.txt", "w")
     
     for index, edge in enumerate(G.edges()): 
         if weight_type=='length' or weight_type=='radius_base' or weight_type=='resistance':
@@ -31,16 +34,17 @@ def write_weights_to_file(G, DATA_PATH, step, weight_type):
         for node in G.nodes():
             file.write(f"{int(node)}\t{G.nodes[node]['pressure']}\n")
             
+    if weight_type=='best_choice':
+        file.write(f"{int(node)}\t{G.nodes[node]['pressure']}\t{G.nodes[node]['rho']}\n")
+        
     file.close()
     
     return
 
 # --------- UTILITIES FUNCTIONS ---------
 
-def regression_function(input):
-    # return 0.2*input + 0.3
-    return 0.3*input + 0.4
-    # return 0.35*input + 0.4
+def regression_function(input, a, b):
+    return a*input + b
 
 # --------- ALGORITHM FUNCTIONS ---------
 
@@ -121,7 +125,7 @@ def update_input_output_volt(G, input_voltage, desired_voltage=None, datastep=No
                 # G.nodes[node]['desired'] = desired_voltage[datastep]
             output_index += 1
 
-def cost_function_regression(G, weight_type, dataset_input_voltage, dataset_output_voltage, datastep=None):
+def cost_function_regression(G, weight_type, dataset_input_voltage, dataset_output_voltage, datastep=None, a=0.2, b=0.3):
 
     if datastep != None:
         update_input_output_volt(G, dataset_input_voltage, dataset_output_voltage, datastep)
@@ -138,235 +142,7 @@ def cost_function_regression(G, weight_type, dataset_input_voltage, dataset_outp
 
     return error
 
-def update_weights(G, training_type, base_error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, datastep):
-
-    gradients = []
-    gradients2 = []
-    
-    if weight_type=='pressure' or weight_type == 'rho':
-
-        for node in G.nodes():
-
-            G_increment = G.copy(as_view=False)
-            
-            G_increment.nodes[node][f'{weight_type}'] += delta_weight
-
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            else:
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            if weight_type == 'pressure':
-                denominator = delta_weight*1e5
-            else:
-                denominator = delta_weight
-                
-            gradients.append((error - base_error)/denominator)
-
-
-        for node in G.nodes():
-
-            G.nodes[node][f'{weight_type}'] -= learning_rate*gradients[int(node)]
-
-    elif weight_type == 'resistance':
-
-        for index, edge in enumerate(G.edges()):
-
-            G_increment = G.copy(as_view=False)
-  
-            G_increment.edges[edge][f'{weight_type}'] += delta_weight
-            
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            else:
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            gradients.append((error - base_error)/delta_weight)
-            
-        for index, edge in enumerate(G.edges()):    #Different loop cause you don't want to change edges yet
-            
-            G.edges[edge][f'{weight_type}'] -= learning_rate*gradients[index]
-            if G.edges[edge][f'{weight_type}'] < 0:
-                G.edges[edge][f'{weight_type}'] += learning_rate*gradients[index]
-                print(f"Error: Negative weight detected for edge {edge} with weight type '{weight_type}'.")
-
-    elif weight_type=='length_radius_base':
-
-        for index, edge in enumerate(G.edges()):
-
-            G_increment = G.copy(as_view=False)
-  
-            G_increment.edges[edge][f'length'] += delta_weight[0]
-            
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            else:
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            denominator = delta_weight[0]*1e-6
-            gradients.append((error - base_error)/denominator)
-
-            G_increment = G.copy(as_view=False)
-            G_increment.edges[edge][f'radius_base'] += delta_weight[1]
-
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            else:
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            denominator = delta_weight[1]*1e-9
-            gradients2.append((error - base_error)/denominator)
-
-        for index, edge in enumerate(G.edges()):    #Different loop cause you don't want to change edges yet
-            G.edges[edge]['length'] -= learning_rate[0]*gradients[index]
-            G.edges[edge]['radius_base'] -= learning_rate[1]*gradients2[index]
-
-    elif weight_type=='length_pressure':
-
-        for index, edge in enumerate(G.edges()):
-
-            G_increment = G.copy(as_view=False)
-  
-            G_increment.edges[edge][f'length'] += delta_weight[0]
-            
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            else:
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            denominator = delta_weight[0]*1e-6
-            gradients.append((error - base_error)/denominator)
-
-        for node in G.nodes():
-
-            G_increment = G.copy(as_view=False)
-            
-            G_increment.nodes[node][f'pressure'] += delta_weight[1]
-
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            else:
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            denominator = delta_weight[1]*1e5
-            gradients2.append((error - base_error)/denominator)
-
-        for index, edge in enumerate(G.edges()):    #Different loop cause you don't want to change edges yet
-            G.edges[edge]['length'] -= learning_rate[0]*gradients[index]
-        for node in G.nodes():
-            G.nodes[node][f'pressure'] -= learning_rate[1]*gradients2[int(node)]
-
-    else:
-
-        for index, edge in enumerate(G.edges()):
-
-            G_increment = G.copy(as_view=False)
-  
-            G_increment.edges[edge][f'{weight_type}'] += delta_weight
-            # print(G_increment.edges[edge][f'{weight_type}'])
-            
-            if training_type == 'allostery':
-                error = cost_function(G_increment, weight_type)  
-            elif training_type == 'regression':
-                error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-            if weight_type == 'length':
-                denominator = delta_weight*1e-6
-            else:
-                denominator = delta_weight*1e-9
-
-            gradients.append((error - base_error)/denominator)
-            
-        for index, edge in enumerate(G.edges()):    #Different loop cause you don't want to change edges yet
-
-            G.edges[edge][f'{weight_type}'] -= learning_rate*gradients[index]
-            # print(gradients[index])
-
-            if G.edges[edge][f'{weight_type}'] < 0:
-                G.edges[edge][f'{weight_type}'] += learning_rate*gradients[index]
-                sys.exit(f"Error: Negative weight detected for edge {edge} with weight type '{weight_type}'.")
-        
-    return G
-
-def update_output(G, voltages):
-
-    index_do = 0
-    eta = 0.1
-
-    for node in G.nodes():
-
-        if G.nodes[node]['type'] == 'target':
-
-            # print('upadting clamped', node, voltages[int(node)], (G.nodes[node]['desired']), eta*(G.nodes[node]['desired']) + (1 - eta) * (voltages[int(node)]))
-
-            G.nodes[node]['type'] = 'source'
-
-            G.nodes[node]['voltage'] = eta*(G.nodes[node]['desired']) + (1 - eta) * (voltages[int(node)])
-            # G.nodes[node]['voltage'] = 1
-
-
-    return G
-
-def update_resistances(G_free, training_type, dataset_input_voltage, dataset_output_voltage, step):
-
-    eta = 0.1
-    alpha = 1000
-    gamma = alpha/(2*eta)
-
-    if training_type == 'regression' or training_type == 'iris':
-        update_input_output_volt(G_free, dataset_input_voltage, dataset_output_voltage, datastep=step)
-
-    # solve graph free
-
-    circuit = networks.circuit_from_graph(G_free, type='resistors') 
-    analysis = ahkab.new_op()
-    result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
-    result = result[0]
-    voltages_free = np.array([result['op'][f'VN{node}'][0][0] for node in range(len(G_free.nodes()))])
-
-    G_clamped = G_free.copy(as_view=False)
-
-    G_clamped = update_output(G_clamped, voltages_free)
-
-    circuit = networks.circuit_from_graph(G_clamped, type='resistors') 
-    analysis = ahkab.new_op()
-    result = ahkab.run(circuit, an_list=analysis) #returns two arrays: resistance over time of the memristors, voltages over time in the nodes
-    result = result[0]
-    voltages_clamped = np.array([result['op'][f'VN{node}'][0][0] for node in G_clamped.nodes()])
-
-    for edge in G_free.edges():
-
-        u, v = edge
-
-        diff_free = np.abs(voltages_free[int(u)] - voltages_free[int(v)])
-        diff_clamped = np.abs(voltages_clamped[int(u)] - voltages_clamped[int(v)])
-
-        delta_v = diff_clamped-diff_free
-        standard_dev = 0.01
-        sample = 2* np.random.rand() * standard_dev - standard_dev/2
-        delta_v += sample
-        delta_v_sq = sample*(diff_clamped**2 - diff_free**2)
-        
-
-        prefac = gamma * (1 / (G_free.edges[edge]['resistance'])**2)
-
-        delta_R_cont = prefac * (delta_v_sq)
-
-        G_free.edges[edge]['resistance'] += delta_R_cont
-
-        if G_free.edges[edge]['resistance'] < 1 :
-
-            G_free.edges[edge]['resistance'] = 1
-
-        if G_free.edges[edge]['resistance'] > 128 :
-
-            G_free.edges[edge]['resistance'] = 128
-        
-    return G_free 
-
-# Returns two arrays with length 15: input voltage and corresponding desired output following the linear relationship
-
-def generate_dataset(training_steps, random=False):
+def generate_dataset(training_steps, random=False, a=0.2, b=0.3):
 
     training_steps +=1
 
@@ -375,7 +151,7 @@ def generate_dataset(training_steps, random=False):
     else:
         input_voltage = np.linspace(1,4, training_steps)
 
-    desired_output = regression_function(input_voltage)
+    desired_output = regression_function(input_voltage, a=a, b=b)
 
     dataset_input = []
     dataset_output = []
@@ -387,53 +163,36 @@ def generate_dataset(training_steps, random=False):
 
 # FUNC----------- PARALLEL
 
-def compute_single_gradient_parallel_helper(G, weight_index, training_type, base_error, weight_type, delta_weight, dataset_input_voltage, dataset_output_voltage, datastep, stored_gradient, lock):
+def compute_single_gradient_parallel_helper(G, task_index, task, training_type, base_error, weight_type, dataset_input_voltage, dataset_output_voltage, datastep, stored_gradient, lock, a=0.2, b=0.3):
     
-    # print(dataset_input_voltage[datastep], dataset_output_voltage[datastep])
+    obj_type, obj, attr, delta, denominator = task
 
-    gradient = 0
     G_increment = G.copy(as_view=False)
-    if weight_type=='pressure' or weight_type == 'rho':
 
-        node = list(G.nodes)[weight_index]
-        G_increment.nodes[node][f'{weight_type}'] += delta_weight
+    if obj_type == "node":
+        G_increment.nodes[obj][attr] += delta
+    elif obj_type == "edge":
+        G_increment.edges[obj][attr] += delta
 
-        if weight_type == 'pressure':
-            denominator = delta_weight*1e5
-        else:
-            denominator = delta_weight
-
-        if training_type == 'allostery':
-            error = cost_function(G_increment, weight_type)  
-        else:
-            error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-        
-        gradient = (error - base_error) / denominator
-
+    if training_type == "allostery":
+        error = cost_function(G_increment, weight_type)
+    elif training_type == "regression":
+        error = cost_function_regression(
+            G_increment,
+            weight_type,
+            dataset_input_voltage,
+            dataset_output_voltage,
+            datastep,
+            a,
+            b
+        )
     else:
-        
-        edge = list(G.edges)[weight_index]
-        G_increment.edges[edge][f'{weight_type}'] += delta_weight
+        raise ValueError(f"Unknown training_type: {training_type}")
 
-        denominator = delta_weight
-        if weight_type == 'length':
-            denominator = delta_weight*1e-6
-        if weight_type == 'radius_base':
-            denominator = delta_weight*1e-9
-        
-
-        if training_type == 'allostery':
-            error = cost_function(G_increment, weight_type)  
-        else:
-            error = cost_function_regression(G_increment, weight_type, dataset_input_voltage, dataset_output_voltage, datastep)
-
-
-        gradient = (error - base_error) / denominator
+    gradient = (error - base_error) / denominator
 
     with lock:
-        stored_gradient[weight_index] = gradient
-
-    return stored_gradient
+        stored_gradient[task_index] = gradient
      
 def to_shared_array(array):
     shared_array = mp.Array('d', array.size, lock=False)
@@ -445,67 +204,129 @@ def to_numpy_array(shared_array, shape):
     array = np.ctypeslib.as_array(shared_array)
     return array.reshape(shape)
 
-def  update_weights_parallel(G, training_type, base_error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step):
+def update_weights_parallel(G, training_type, base_error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, datastep, a=0.2, b=0.3, relative_noise=0, n_cores=1 ):
 
-    if weight_type=='pressure' or weight_type=='rho':
-        batch_size = G.number_of_nodes()
-        # batch_size = 1
-        number_of_weights = G.number_of_nodes()
+    tasks = []
+
+    if weight_type == "pressure" or weight_type == "rho":
+
+        for node in G.nodes():
+            if weight_type == "pressure":
+                denominator = delta_weight * 1e5
+            else:
+                denominator = delta_weight
+
+            tasks.append(("node", node, weight_type, delta_weight, denominator))
+
+    elif weight_type == "length_radius_base":
+
+        for edge in G.edges():
+            tasks.append(("edge", edge, "length", delta_weight[0], delta_weight[0] * 1e-6))
+            tasks.append(("edge", edge, "radius_base", delta_weight[1], delta_weight[1] * 1e-9))
+
+    elif weight_type == "length_pressure":
+
+        for edge in G.edges():
+            tasks.append(("edge", edge, "length", delta_weight[0], delta_weight[0] * 1e-6))
+
+        for node in G.nodes():
+            tasks.append(("node", node, "pressure", delta_weight[1], delta_weight[1] * 1e5))
+
     else:
-        # batch_size = int(G.number_of_edges()/2)
-        batch_size = 7
-        number_of_weights = G.number_of_edges()
 
-    # Check if numb_nodes is a multiple of batch_size
-    if number_of_weights % batch_size != 0:
-        raise ValueError(f"number_of_weights ({number_of_weights}) must be a multiple of batch_size ({batch_size}).")
+        for edge in G.edges():
+            if weight_type == "length":
+                denominator = delta_weight * 1e-6
+            else:
+                denominator = delta_weight * 1e-9
 
-    # Initialize gradient vector
-    init_gradient = np.zeros((number_of_weights), dtype = np.float64)  
+            tasks.append(("edge", edge, weight_type, delta_weight, denominator))
 
-    # Create multiprocessing array to which the different processes can access to. 
-    # Thanks to temp, we can write a numpy array to a mp array and initialize it in this case.
-    shared_gradient = to_shared_array(init_gradient)    #Returns initialized shared array
+    number_of_tasks = len(tasks)
 
-    # Create bridge to a nupy vector 
+    init_gradient = np.zeros(number_of_tasks, dtype=np.float64)
+    shared_gradient = to_shared_array(init_gradient)
     stored_gradient = to_numpy_array(shared_gradient, init_gradient.shape)
 
     lock = mp.Lock()
-    # execute in batches
-    for i in range(0, number_of_weights, batch_size):
-        # execute all tasks in a batch
-        processes = [mp.Process(target = compute_single_gradient_parallel_helper, 
-                                args=(G, p, training_type, base_error, weight_type, delta_weight, dataset_input_voltage, dataset_output_voltage, step, stored_gradient, lock)) for p in range(i, i + batch_size)]
 
-        # start all processes
-        for process in processes:
-            process.start()
-        # wait for all processes to complete
-        for process in processes:
-            process.join()
+    processes = []
 
-    if weight_type == "pressure" or weight_type=='rho':
+    for task_index, task in enumerate(tasks):
+
+        proc = mp.Process(
+            target=compute_single_gradient_parallel_helper,
+            args=(
+                G, task_index, task, training_type, base_error, weight_type,
+                dataset_input_voltage, dataset_output_voltage, datastep,
+                stored_gradient, lock, a, b
+            )
+        )
+
+        processes.append(proc)
+        proc.start()
+
+        if len(processes) >= n_cores:
+            for proc in processes:
+                proc.join()
+            processes = []
+
+    for proc in processes:
+        proc.join()
+
+    task_index = 0
+
+    if weight_type == "pressure" or weight_type == "rho":
 
         for node in G.nodes():
-            G.nodes[node][f'{weight_type}'] -= learning_rate*stored_gradient[int(node)]
+            G.nodes[node][weight_type] -= learning_rate * stored_gradient[task_index]
+
+            eta = np.random.uniform(-relative_noise, relative_noise)
+            G.nodes[node][weight_type] *= (1 + eta)
+
+            task_index += 1
+
+    elif weight_type == "length_radius_base":
+
+        for edge in G.edges():
+            G.edges[edge]["length"] -= learning_rate[0] * stored_gradient[task_index]
+            task_index += 1
+
+            G.edges[edge]["radius_base"] -= learning_rate[1] * stored_gradient[task_index]
+            task_index += 1
+
+    elif weight_type == "length_pressure":
+
+        for edge in G.edges():
+            G.edges[edge]["length"] -= learning_rate[0] * stored_gradient[task_index]
+            task_index += 1
+
+        for node in G.nodes():
+            G.nodes[node]["pressure"] -= learning_rate[1] * stored_gradient[task_index]
+            task_index += 1
 
     else:
 
-        for index, edge in enumerate(G.edges()):  
+        for edge in G.edges():
+            G.edges[edge][weight_type] -= learning_rate * stored_gradient[task_index]
 
-            G.edges[edge][f'{weight_type}'] -= learning_rate*stored_gradient[index]
-            # G.edges[edge][f'{weight_type}'] -= learning_rate*stored_gradient[index] + np.random.normal(0,0.1)
-            
-            # print(learning_rate*stored_gradient[index])
-            if G.edges[edge][f'{weight_type}'] < 0:
-                G.edges[edge][f'{weight_type}'] += learning_rate*stored_gradient[index]
-                print(f"Error: Negative weight detected for edge {edge} with weight type '{weight_type}'.")
+            eta = np.random.uniform(-relative_noise, relative_noise)
+            G.edges[edge][weight_type] *= (1 + eta)
+
+            if G.edges[edge][weight_type] < 0:
+                G.edges[edge][weight_type] += learning_rate * stored_gradient[task_index]
+                raise ValueError(
+                    f"Negative weight detected for edge {edge} "
+                    f"with weight type '{weight_type}'."
+                )
+
+            task_index += 1
 
     return G
 
 # --------- TRAINING FUNCTIONS ---------
 
-def train(G, training_type, training_steps, weight_type, delta_weight, learning_rate, save_final_graph=False, write_weights = False, graph_id=None, constant_source=None):
+def train(G, training_type, training_steps, weight_type, delta_weight, learning_rate, relative_noise = 0, a = 0.2, b = 0.3, save_final_graph=False, write_weights = False, constant_source=None, constant_source_node=None, multi_train=False, n_cores=1):
 
     # OPEN files, CREATE folders to write results
     DATA_PATH = Path(f"data/{training_type}{G.graph['name']}/")
@@ -517,21 +338,35 @@ def train(G, training_type, training_steps, weight_type, delta_weight, learning_
     DATA_PATH_WEIGHT = DATA_PATH / "weights" / weight_type
     DATA_PATH_WEIGHT.mkdir(parents=True, exist_ok=True)
 
-    mse_file = open(f"{DATA_PATH_MSE}/mse_{weight_type}.txt", "w") #write error 
+    if relative_noise>0:
+        mse_file = open(f"{DATA_PATH_MSE}/mse_{weight_type}_rn{relative_noise}.txt", "w") #write error 
+    else:
+        mse_file = open(f"{DATA_PATH}/mse/mse_{weight_type}.txt", "w") #write error 
     
-    if G.name == 'vd': 
-        potential_target_file = open(f"{DATA_PATH}/potential_targets{G.nodes[1]['desired']}.txt", "w") #write potential target during training (for voltage divider)  
+    if multi_train: 
+        DATA_PATH_MULTITARGET = DATA_PATH / "multi_target"
+        DATA_PATH_MULTITARGET.mkdir(parents=True, exist_ok=True)
+        potential_target_file = open(f"{DATA_PATH_MULTITARGET}/potential_targets{G.nodes[1]['desired']}.txt", "w") #write potential target during training (for voltage divider)  
+        DATA_PATH_WEIGHT = DATA_PATH_MULTITARGET
     else:
         potential_target_file = None     
+        
+    if weight_type == 'best_choice':
+        best_choice_file = open(f"{DATA_PATH_WEIGHT}/choosen_weights.txt", "w")
+
 
     if write_weights:
         # WRITE initial condition: intialized wieghts and intial error
-        write_weights_to_file(G, DATA_PATH_WEIGHT, step=0, weight_type=weight_type)
+        write_weights_to_file(G, DATA_PATH_WEIGHT, step=0, weight_type=weight_type, multi_train=multi_train)
+         
     dataset_input_voltage = None
     dataset_output_voltage = None
     if training_type == 'regression':
-        dataset_input_voltage, dataset_output_voltage = generate_dataset(training_steps, random=True)
-        testset_input_voltage, testset_output_voltage = generate_dataset(5)
+        # impose contant voltage source for enabling biasing
+        G.nodes[constant_source_node]['voltage'] = constant_source
+
+        dataset_input_voltage, dataset_output_voltage = generate_dataset(training_steps, random=True, a=a, b=b)
+        testset_input_voltage, testset_output_voltage = generate_dataset(5, a=a, b=b)
 
     # COMPUTE initial error
     if training_type == 'allostery':
@@ -551,11 +386,48 @@ def train(G, training_type, training_steps, weight_type, delta_weight, learning_
     # LOOP over training steps
     for step in range(training_steps): 
 
-        update_weights(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step)
-        # update_weights_parallel(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, step=step)
+        if weight_type == 'best_choice':
+            G_matrices = {}
+            cost_func_vec = np.zeros(4)
+            possible_weights = ['length', 'radius_base', 'rho', 'pressure']
+            for weight_possible_inx in range(len(possible_weights)):
 
+                G_matrices[f'{possible_weights[weight_possible_inx]}'] = G.copy(as_view=False)
+
+                weight_type_step = possible_weights[weight_possible_inx]
+                delta_weight_step = delta_weight[weight_possible_inx]
+                learning_rate_step = learning_rate[weight_possible_inx]
+
+                if training_type == 'voltage_divider' or training_type == 'regression': 
+                    G_matrices[f'{possible_weights[weight_possible_inx]}'].nodes['3']['voltage'] = constant_source[weight_possible_inx]
+
+                if training_type=='regression':
+                    initial_error = cost_function_regression(G_matrices[f'{possible_weights[weight_possible_inx]}'], weight_type_step, testset_input_voltage, testset_output_voltage)
+                    error = cost_function_regression(G_matrices[f'{possible_weights[weight_possible_inx]}'], weight_type, dataset_input_voltage, dataset_output_voltage, datastep=step)
+                else:
+                    initial_error = cost_function(G_matrices[f'{possible_weights[weight_possible_inx]}'], weight_type_step)
+
+                update_weights_parallel(G_matrices[f'{possible_weights[weight_possible_inx]}'], training_type, error, weight_type_step, delta_weight_step, learning_rate_step, dataset_input_voltage, dataset_output_voltage, step=step)
+
+                if training_type=='regression':
+                    after_update_error = cost_function_regression(G_matrices[f'{possible_weights[weight_possible_inx]}'], weight_type_step, testset_input_voltage, testset_output_voltage)
+                else:
+                    after_update_error = cost_function(G_matrices[f'{possible_weights[weight_possible_inx]}'], weight_type_step)
+
+                # print(possible_weights[weight_possible_inx], initial_error, after_update_error, after_update_error/initial_error)
+                cost_func_vec[weight_possible_inx] = after_update_error
+            
+            # choosen_weight = np.argmin(cost_func_vec)
+            choosen_weight = np.argmin(cost_func_vec/initial_error)
+            print(choosen_weight)
+            best_choice_file.write(f"{step+1}\t{choosen_weight}\n")
+            G = G_matrices[f'{possible_weights[choosen_weight]}'].copy(as_view=False)
+        else:
+           
+            update_weights_parallel(G, training_type, error, weight_type, delta_weight, learning_rate, dataset_input_voltage, dataset_output_voltage, datastep=step, relative_noise=relative_noise, n_cores = n_cores)
+            
         if write_weights:
-            write_weights_to_file(G, DATA_PATH_WEIGHT, step=step+1, weight_type=weight_type)
+            write_weights_to_file(G, DATA_PATH_WEIGHT, step=step+1, weight_type=weight_type, multi_train=multi_train)
             
         # COMPUTE error
         if training_type == 'allostery':
@@ -570,24 +442,26 @@ def train(G, training_type, training_steps, weight_type, delta_weight, learning_
 
         if save_final_graph==True and (step+1)==training_steps:
             nx.write_graphml(G, f"{DATA_PATH}/trained_graph_{weight_type}.graphml")
-                            
+            
+    if weight_type == 'best_choice':
+        best_choice_file.close()                   
     mse_file.close()
     
-    if G.name == 'vd':
+    if multi_train:
         potential_target_file.close()
 
-def test_regression(G, step, weight_type, imposed_pressure=None, slope = None, potential=None):
+def test_regression(G, constant_source, constant_source_node, step, weight_type,  retrain=False, a=0.2, b=0.3):
         
-    if slope is not None:        
-        if potential is not None:
-            reg_file = open(f"{par.DATA_PATH}regression{G.graph['name']}/relations_regression/relations_regression{weight_type}{step}_{slope}_{potential}.txt", "w") 
-            data = np.loadtxt(f"{par.DATA_PATH}regression{G.graph['name']}/weights/{weight_type}/{weight_type}{step}_{slope}_{potential}.txt", unpack=True)
-        else:
-            reg_file = open(f"{par.DATA_PATH}regression{G.graph['name']}/relations_regression/relations_regression{weight_type}{step}_{slope}.txt", "w") 
-            data = np.loadtxt(f"{par.DATA_PATH}regression{G.graph['name']}/weights/{weight_type}/{weight_type}{step}_{slope}.txt", unpack=True)
-    else:
-        reg_file = open(f"{par.DATA_PATH}regression{G.graph['name']}/relations_regression/relations_regression{weight_type}{step}.txt", "w") 
-        data = np.loadtxt(f"{par.DATA_PATH}regression{G.graph['name']}/weights/{weight_type}/{weight_type}{step}.txt", unpack=True)
+    DATA_PATH = Path(f"data/regression{G.graph['name']}/relations_regression/")
+    DATA_PATH.mkdir(parents=True, exist_ok=True)
+
+    if retrain:
+        reg_file = open(f"{DATA_PATH}/relations_regression{weight_type}{step}_retrain.txt", "w") 
+    else:   
+        reg_file = open(f"{DATA_PATH}/relations_regression{weight_type}{step}.txt", "w") 
+
+    DATA_PATH_W = Path(f"data/regression{G.graph['name']}/weights/{weight_type}/")
+    data = np.loadtxt(f"{DATA_PATH_W}/{weight_type}{step}.txt", unpack=True)
     weight_vec = data[1]
 
     if weight_type == 'pressure' or weight_type == 'rho':
@@ -600,8 +474,10 @@ def test_regression(G, step, weight_type, imposed_pressure=None, slope = None, p
         for index, edge in enumerate(G.edges):
             G.edges[edge][f'{weight_type}'] = weight_vec[index]
 
+    # impose contant voltage source for enabling biasing 
+    G.nodes[constant_source_node]['voltage'] = constant_source
 
-    testset_input_voltage, testset_output_voltage = generate_dataset(15)
+    testset_input_voltage, testset_output_voltage = generate_dataset(15, a=a, b=b)
 
     error = 0
     for datastep in range(len(testset_input_voltage)):
@@ -613,7 +489,7 @@ def test_regression(G, step, weight_type, imposed_pressure=None, slope = None, p
             analysis = ahkab.new_op()
             # analysis = ahkab.new_tran(tstart=0, tstop=0.1, tstep=1e-3, x0=None)
         else:
-            circuit = networks.circuit_from_graph(G, type='memristors', imposed_pressure=imposed_pressure) 
+            circuit = networks.circuit_from_graph(G, type='memristors') 
             analysis = ahkab.new_tran(tstart=0, tstop=0.1, tstep=1e-3, x0=None)
 
         # DEFINE a transient analysis (analysis of the circuit over time)
@@ -638,3 +514,60 @@ def test_regression(G, step, weight_type, imposed_pressure=None, slope = None, p
     reg_file.close()
     
     return
+
+def apply_weight_noise(G, weight_type, relative_noise):
+    Gp = G.copy(as_view=False)
+
+    if weight_type in ["pressure", "rho"]:
+        for node in Gp.nodes():
+            w = Gp.nodes[node][weight_type]
+            eps = np.random.uniform(-relative_noise, relative_noise)
+            Gp.nodes[node][weight_type] = w * (1 + eps)
+    else:
+        for edge in Gp.edges():
+            w = Gp.edges[edge][weight_type]
+            eps = np.random.uniform(-relative_noise, relative_noise)
+            Gp.edges[edge][weight_type] = w * (1 + eps)
+
+    return Gp
+
+from tqdm import tqdm
+def robustness_trained(G, weight_type, training_type, step, relative_noise, n_samples=500):
+    DATA_PATH = f"data/{training_type}{G.graph['name']}/"
+
+    # Load trained weights
+    data = np.loadtxt( f"{DATA_PATH}weights/{weight_type}/{weight_type}{step}.txt", unpack=True )
+    weight_vec = data[1]
+
+    G_opt = G.copy(as_view=False)
+
+    if weight_type in ["pressure", "rho"]:
+        for node in G_opt.nodes():
+            G_opt.nodes[node][weight_type] = weight_vec[int(node)]
+    else:
+        for index, edge in enumerate(G_opt.edges()):
+            G_opt.edges[edge][weight_type] = weight_vec[index]
+
+    if training_type == 'regression':
+        # Fixed test set
+        testset_input_voltage, testset_output_voltage = generate_dataset(20)
+        baseline_cost = cost_function_regression(G_opt, weight_type, testset_input_voltage, testset_output_voltage)
+    else:
+        baseline_cost = cost_function(G_opt, weight_type)
+
+    perturbed_costs = []
+
+    for _ in tqdm(range(n_samples)):
+        G_noisy = apply_weight_noise(G_opt, weight_type, relative_noise)
+
+        if training_type == 'regression':
+            cost = cost_function_regression(G_noisy, weight_type, testset_input_voltage, testset_output_voltage)
+        else:
+            cost = cost_function(G_noisy, weight_type)
+
+        perturbed_costs.append(cost)
+
+    perturbed_costs = np.array(perturbed_costs)
+
+    data = {'baseline_cost': baseline_cost, 'perturbed_costs': perturbed_costs}
+    np.save(f"{DATA_PATH}mse/robustness_mse_{weight_type}.npy", data)
