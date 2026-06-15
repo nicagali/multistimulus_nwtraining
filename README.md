@@ -21,9 +21,8 @@ The framework enables the training of iontronic networks using multiple physical
 as trainable weights.
 
 ---
+<img src="docs/graph.png" width="500">
 
-![Graph of nodes connected by memrisors](docs/graph.png)
-![Cost function for training of channels' length during training](docs/mse.png)
 
 ## Repository Structure
 
@@ -114,6 +113,16 @@ python scripts/linear_regression_retrain.py
 Demonstrates reconfiguration of a previously trained regression network through an alternative physical control modality.
 
 ---
+
+### Tests and Validation
+The tests/ directory contains validation and robustness analyses used to verify the implementation and assess the stability of trained iontronic networks.
+
+For example,
+
+python tests/robustness_trained.py
+evaluates the robustness of a trained network against experimentally motivated perturbations of the optimized weights and generates the corresponding cost-function distributions.
+
+In addition, the training framework includes a relative_noise option that introduces random fluctuations in the weights at every training step. This feature can be used to investigate how experimentally motivated fabrication uncertainties and control errors affect the training dynamics, convergence behavior, and final network performance. Different perturbation amplitudes can be specified for geometrical and node-based weights, enabling systematic robustness studies under realistic operating conditions.
 
 ### Associated Data and Reproducibility Package
 
