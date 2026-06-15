@@ -43,7 +43,7 @@ as trainable weights.
 ## Installation
 This project relies on a modified version of the circuit simulator ahkab that includes an implementation of iontronic memristive nanochannels.
 
-The modified ahkab package can be obtained from: 
+The modified ahkab package can be obtained from: 10.5281/zenodo.20703742
 
 Install the package following the instructions provided in the corresponding repository before running the scripts contained in this project.
 
