@@ -59,7 +59,7 @@ def initialize_edges(G, mix_base_tip = False):
 
     initial_length = 10 # [mu m]
     initial_radius_base = 200 # [nm]
-    initial_value_resistance = 50 #do I still need this??
+    initial_value_resistance = 1/4
     initial_value_conductance = 1/initial_value_resistance
 
     edge_list = list(G.edges())
@@ -131,15 +131,12 @@ def voltage_divider(save_data=False, voltage_desired = [4]):
     G.add_node(2, **attributes)
     G.nodes[2]['constant_source'] = True
 
-# learning_rate_vec = [1e-5, 2e-6, 5e-3, 5e2]
-
     # ADD edges
     G.add_edge(0,1)
     G.add_edge(1,2)
-
     
     # INITIALIZE nodes and edges
-    voltage_input = [5, 0] # node initialized here because different for differnent nw
+    voltage_input = [5, 0] 
     voltage_desired = [4]
 
     initialize_nodes(G, sources=[0,2], targets=[1], voltage_input=voltage_input, voltage_desired=voltage_desired)
@@ -153,7 +150,7 @@ def voltage_divider(save_data=False, voltage_desired = [4]):
 
 # RANDOM NETWORK
  
-def random_graph(graph_id, number_nodes=9, number_edges=12, number_sources=3, number_targets = 1, save_data=False, res_change=False):
+def random_graph(graph_id, number_nodes=9, number_edges=12, number_sources=3, number_targets = 1, save_data=False):
 
     # CREATE random graph with number_nodes conected by number_edges
     G = nx.dense_gnm_random_graph(number_nodes, number_edges)
@@ -179,7 +176,7 @@ def random_graph(graph_id, number_nodes=9, number_edges=12, number_sources=3, nu
 
 # 3 --------- GRAPH -> CIRCUIT ---------
 # Create a the class 'Circuit' used in the package ahkab from the desired graph.
-def circuit_from_graph(G, type, imposed_pressure=None):
+def circuit_from_graph(G, type):
 
     circuit = ahkab.circuit.Circuit('Circuit')
     
@@ -196,11 +193,8 @@ def circuit_from_graph(G, type, imposed_pressure=None):
         # An edge = (u,v), the nodes are then called 'n u' and 'n v', u = edge[0], ...
 
         if type == 'memristors':
-            if imposed_pressure==None:
-                circuit.add_mysistor(f'M{index+1}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]["resistance"], rho_b=G.nodes[edge[0]]['rho'], length_channel = G.edges[edge]['length']*1e-6, radius_base = G.edges[edge]['radius_base']*1e-9, pressure=(G.nodes[edge[0]]['pressure']-G.nodes[edge[1]]['pressure'])*1e5, delta_rho = (G.nodes[edge[0]]['rho']-G.nodes[edge[1]]['rho']))
-            else:
-                circuit.add_mysistor(f'M{index+1}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]["resistance"], rho_b=G.nodes[edge[0]]['rho'], length_channel = G.edges[edge]['length']*1e-6, radius_base = G.edges[edge]['radius_base']*1e-9, pressure=(imposed_pressure)*1e5, delta_rho = (G.nodes[edge[0]]['rho']-G.nodes[edge[1]]['rho']))
-
+            circuit.add_mysistor(f'M{index+1}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]["resistance"], rho_b=G.nodes[edge[0]]['rho'], length_channel = G.edges[edge]['length']*1e-6, radius_base = G.edges[edge]['radius_base']*1e-9, pressure=(G.nodes[edge[0]]['pressure']-G.nodes[edge[1]]['pressure'])*1e5, delta_rho = (G.nodes[edge[0]]['rho']-G.nodes[edge[1]]['rho']))
+             
         else:
 
             circuit.add_resistor(f'R{index}', f'n{edge[0]}', f'n{edge[1]}', value = G.edges[edge]['resistance'])
